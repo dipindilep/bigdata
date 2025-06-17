@@ -16,25 +16,25 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import subprocess
 
-# 1. Start Spark
+# Start Spark
 spark = SparkSession.builder.appName("RealisticHelpfulnessPrediction").getOrCreate()
 
-# 2. Load data
+# Load data from the bucket
 df = spark.read.parquet("gs://bigda25/cleaned_reviews_parquet")
 
-# 3. Clean + label
+# Clean + label
 df_clean = df.dropna(subset=["rating", "title", "text"]).dropDuplicates(["title", "text"])
 df_labeled = df_clean.withColumn("is_helpful", when(col("rating") >= 4, 1).otherwise(0))
 
-# 4. Balance classes
+# Balance classes
 df_pos = df_labeled.filter(col("is_helpful") == 1).sample(0.3, seed=1)
 df_neg = df_labeled.filter(col("is_helpful") == 0).sample(0.3, seed=1)
 df_balanced = df_pos.union(df_neg).orderBy(rand())
 
-# 5. Combine title + text
+# Combine title + text
 df_final = df_balanced.withColumn("combined_text", concat_ws(" ", col("title"), col("text")))
 
-# 6. NLP + ML pipeline
+# NLP + ML pipeline
 tokenizer = Tokenizer(inputCol="combined_text", outputCol="tokens")
 remover = StopWordsRemover(inputCol="tokens", outputCol="filtered_tokens")
 tf = HashingTF(inputCol="filtered_tokens", outputCol="raw_features", numFeatures=10000)
@@ -42,21 +42,21 @@ idf = IDF(inputCol="raw_features", outputCol="features")
 lr = LogisticRegression(labelCol="is_helpful", featuresCol="features")
 pipeline = Pipeline(stages=[tokenizer, remover, tf, idf, lr])
 
-# 7. Train-test split
+# Train-test split
 train_data, test_data = df_final.randomSplit([0.8, 0.2], seed=42)
 
-# 8. Train model
+# Train model
 model = pipeline.fit(train_data)
 
-# 9. Predict
+# Predict
 predictions = model.transform(test_data)
 
-# 10. Evaluate with Spark
+# Evaluate with Spark
 evaluator = BinaryClassificationEvaluator(labelCol="is_helpful", metricName="areaUnderROC")
 roc_auc = evaluator.evaluate(predictions)
 print(f"\n ROC AUC Score: {roc_auc:.4f}")
 
-# 11. Evaluate with sklearn
+# Evaluate with sklearn
 pdf = predictions.select("is_helpful", "prediction").sample(False, 0.1, seed=42).limit(5000).toPandas()
 y_true = pdf["is_helpful"]
 y_pred = pdf["prediction"]
@@ -74,7 +74,7 @@ print(f"Recall:    {recall:.4f}")
 print(f"F1-score:  {f1:.4f}")
 print("\nFull Classification Report:\n", report)
 
-# 12. Confusion matrix plot
+# Confusion matrix plot
 cm = confusion_matrix(y_true, y_pred)
 labels = ["Not Helpful", "Helpful"]
 
@@ -85,7 +85,7 @@ plt.xlabel("Predicted")
 plt.ylabel("Actual")
 plt.tight_layout()
 
-# Save and upload
+# Save and upload into the bucket
 local_path = "confusion_matrix.png"
 plt.savefig(local_path)
 plt.close()
