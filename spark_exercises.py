@@ -9,7 +9,7 @@ df = spark.read.parquet("gs://bigda25/cleaned_reviews_parquet")
 
 base_output_path = "gs://bigda25/spark_exercise_output/"
 
-# Task 1: avg_monthly_rating
+# avg_monthly_rating
 start = time.time()
 avg_monthly_rating = (
     df.withColumn("month", date_format(col("review_date"), "yyyy-MM"))
@@ -22,7 +22,7 @@ avg_monthly_rating.write.mode("overwrite").parquet(base_output_path + "avg_month
 end = time.time()
 print(f"Task 1 (avg_monthly_rating) completed in {end - start:.2f} seconds")
 
-# Task 2: top_reviewed_products (top 10)
+# top_reviewed_products (top 10)
 start = time.time()
 top_reviewed_products = (
     df.groupBy("asin")
@@ -35,7 +35,7 @@ top_reviewed_products.write.mode("overwrite").parquet(base_output_path + "top_re
 end = time.time()
 print(f"Task 2 (top_reviewed_products) completed in {end - start:.2f} seconds")
 
-# Task 3: verified_vs_unverified
+# verified_vs_unverified
 start = time.time()
 verified_vs_unverified = (
     df.groupBy("verified_purchase")
